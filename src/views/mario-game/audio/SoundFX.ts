@@ -3,6 +3,7 @@ export class SoundFX {
   private bgmNode: OscillatorNode | null = null
   private bgmGain: GainNode | null = null
   private bgmPlaying = false
+  private bgmTimerId: ReturnType<typeof setTimeout> | null = null
   private muted = false
 
   private getCtx(): AudioContext {
@@ -294,7 +295,7 @@ export class SoundFX {
         osc.stop(ctx.currentTime + noteLength * 0.9)
       }
       currentNote++
-      setTimeout(playNextNote, noteLength * 1000)
+      this.bgmTimerId = setTimeout(playNextNote, noteLength * 1000)
     }
 
     playNextNote()
@@ -302,6 +303,10 @@ export class SoundFX {
 
   stopBGM() {
     this.bgmPlaying = false
+    if (this.bgmTimerId !== null) {
+      clearTimeout(this.bgmTimerId)
+      this.bgmTimerId = null
+    }
     this.bgmNode = null
     this.bgmGain = null
   }
