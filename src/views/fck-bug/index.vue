@@ -15,6 +15,7 @@ const bugX = ref(50);
 const bugY = ref(50);
 const bugOpacity = ref(1);
 const bugScale = ref(1);
+const isJumping = ref(false);
 
 // Cursor tracking
 const cursorX = ref(0);
@@ -148,6 +149,9 @@ const handleMouseMove = (e: MouseEvent) => {
 
 // Calculate bug escape - only jump when cursor is close
 const updateBugPosition = () => {
+  // If bug is currently jumping, don't jump again
+  if (isJumping.value) return;
+
   // Get viewport dimensions
   const maxX = window.innerWidth - 80;
   const maxY = window.innerHeight - 80;
@@ -163,13 +167,21 @@ const updateBugPosition = () => {
     return;
   }
 
-  // Only jump when cursor is close (within 150px)
-  if (distance < 150) {
+  // Only jump when cursor is close (within 150px) - 90% evasion rate
+  if (distance < 150 && Math.random() > 0.1) {
+    // Start jump cooldown
+    isJumping.value = true;
+
     // Jump to completely random position
     bugX.value = Math.random() * maxX + 20;
     bugY.value = Math.random() * maxY + 20;
+
+    // Cooldown - bug stays still for 100ms after jumping
+    setTimeout(() => {
+      isJumping.value = false;
+    }, 400);
   }
-  // If cursor is far (>150px), bug stays still
+  // If cursor is far (>150px) or 10% "lag" chance, bug stays still
 };
 
 // Invisibility skill - teleport to random position
@@ -357,93 +369,62 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="min-h-screen bg-bg-deep text-text-primary font-body overflow-hidden relative"
+    class="min-h-screen bg-[#0d0d0d] text-[#d4d4d4] font-mono overflow-y-auto relative selection:bg-blue-500/30"
     @click="handleClick"
   >
-    <!-- VS Code Background - GLOWY & NO BORDER -->
-    <div class="fixed inset-0 bg-[#0d0d0d] flex justify-center p-4 overflow-y-auto">
-      <!-- VS Code Container - NO BORDER, just glow -->
+    <div class="flex justify-center items-start p-4 md:p-10 min-h-full">
       <div
-        class="relative bg-[#1e1e1e] shadow-[0_0_60px_rgba(88,166,255,0.15),0_0_100px_rgba(88,166,255,0.1)] select-none w-full max-w-3xl"
+        class="relative bg-[#1e1e1e] shadow-[0_0_60px_rgba(88,166,255,0.15)] w-full max-w-3xl flex flex-col h-fit mb-20 border border-[#3c3c3c]"
       >
-        <!-- VS Code Title Bar with glow -->
         <div
-          class="h-8 bg-gradient-to-r from-[#252526] to-[#1e1e1e] flex items-center px-4 gap-2 border-b border-[#3c3c3c] shadow-[0_2px_10px_rgba(88,166,255,0.1)]"
+          class="h-9 sticky top-0 z-20 bg-[#252526] flex items-center px-4 gap-4 border-b border-[#3c3c3c] select-none"
         >
-          <div class="flex gap-1.5">
-            <div class="w-3 h-3 rounded-full bg-[#ff5f56] shadow-[0_0_8px_#ff5f56]"></div>
-            <div class="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-[0_0_8px_#ffbd2e]"></div>
-            <div class="w-3 h-3 rounded-full bg-[#27c93f] shadow-[0_0_8px_#27c93f]"></div>
+          <div class="flex gap-2">
+            <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
+            <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+            <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
           </div>
-          <div class="flex-1 text-center text-xs text-[#cccccc] font-mono">
-            fix_bug.ts — J2TEAM Editor
-          </div>
+          <div class="flex-1 text-center text-xs text-[#858585]">fix_bug.ts — J2TEAM Editor</div>
         </div>
 
-        <!-- Code Area -->
-        <div class="relative select-none w-full">
-          <!-- Line Numbers & Code Content - Inline for perfect sync -->
-          <div class="flex">
-            <div class="w-8 md:w-10 flex-shrink-0 bg-[#1a1a1a] border-r border-[#2a2a2a]">
-              <div
-                v-for="(line, index) in codeLines"
-                :key="index"
-                class="h-5 flex items-center justify-end pr-2 text-xs font-mono select-none whitespace-nowrap"
-                :class="
-                  deletedLines.includes(index) ? 'text-[#ff5f56] line-through' : 'text-[#6e7681]'
-                "
-              >
-                {{ index + 1 }}
-              </div>
-            </div>
+        <div class="flex py-4 relative select-none min-h-[400px]">
+          <div
+            class="w-10 flex-shrink-0 flex flex-col items-end pr-3 border-r border-[#2a2a2a] text-[#6e7681] text-xs leading-6"
+          >
+            <div v-for="(_, index) in codeLines" :key="index">{{ index + 1 }}</div>
+          </div>
 
-            <div class="flex-1 pl-2 md:pl-3 overflow-x-auto">
-              <div
-                v-for="(line, index) in codeLines"
-                :key="index"
-                class="h-5 flex items-center text-xs md:text-sm font-mono select-none whitespace-nowrap"
-                :class="
-                  deletedLines.includes(index) ? 'text-[#ff5f56] line-through' : 'text-[#d4d4d4]'
-                "
+          <div class="flex-1 pl-4 overflow-x-auto leading-6 text-sm md:text-base">
+            <div
+              v-for="(line, index) in codeLines"
+              :key="index"
+              :class="[
+                'whitespace-nowrap',
+                deletedLines.includes(index) ? 'text-[#ff5f56] line-through opacity-50' : '',
+              ]"
+            >
+              <span v-if="line.includes('import')" class="text-[#569cd6]">{{ line }}</span>
+              <span v-else-if="line.includes('class')" class="text-[#4ec9b0]">{{ line }}</span>
+              <span
+                v-else-if="line.includes('private') || line.includes('public')"
+                class="text-[#9cdcfe]"
+                >{{ line }}</span
               >
-                <span v-if="line.includes('import')" class="text-[#569cd6] select-none">{{
-                  line
-                }}</span>
-                <span v-else-if="line.includes('class')" class="text-[#4ec9b0] select-none">{{
-                  line
-                }}</span>
-                <span
-                  v-else-if="line.includes('private') || line.includes('public')"
-                  class="text-[#9cdcfe] select-none"
-                  >{{ line }}</span
-                >
-                <span
-                  v-else-if="line.includes('const') || line.includes('let')"
-                  class="text-[#9cdcfe] select-none"
-                  >{{ line }}</span
-                >
-                <span
-                  v-else-if="line.includes('function') || line.includes('async')"
-                  class="text-[#569cd6] select-none"
-                  >{{ line }}</span
-                >
-                <span v-else-if="line.includes('return')" class="text-[#c586c0] select-none">{{
-                  line
-                }}</span>
-                <span v-else-if="line.includes('//')" class="text-[#6a9955] select-none italic">{{
-                  line
-                }}</span>
-                <span v-else-if="line.includes('for')" class="text-[#dcdcaa] select-none">{{
-                  line
-                }}</span>
-                <span v-else-if="line.includes('new')" class="text-[#4ec9b0] select-none">{{
-                  line
-                }}</span>
-                <span v-else-if="line.includes('export')" class="text-[#569cd6] select-none">{{
-                  line
-                }}</span>
-                <span v-else class="select-none">{{ line }}</span>
-              </div>
+              <span
+                v-else-if="line.includes('const') || line.includes('let')"
+                class="text-[#9cdcfe]"
+                >{{ line }}</span
+              >
+              <span
+                v-else-if="line.includes('function') || line.includes('async')"
+                class="text-[#569cd6]"
+                >{{ line }}</span
+              >
+              <span v-else-if="line.includes('return')" class="text-[#c586c0]">{{ line }}</span>
+              <span v-else-if="line.includes('//')" class="text-[#6a9955] italic">{{ line }}</span>
+              <span v-else-if="line.includes('for')" class="text-[#dcdcaa]">{{ line }}</span>
+              <span v-else-if="line.includes('new')" class="text-[#4ec9b0]">{{ line }}</span>
+              <span v-else>{{ line }}</span>
             </div>
           </div>
         </div>
